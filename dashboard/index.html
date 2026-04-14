@@ -616,7 +616,12 @@
                 document.getElementById('input-welcome').value = config.welcomeMessage || '';
                 document.getElementById('input-business').value = config.businessInfo || '';
                 document.getElementById('input-order-prompt').value = config.orderPrompt || '';
-                document.getElementById('input-help-message').value = config.helpMessage || '';
+                document.getElementById('input-help-message').value = config.helpMessage || 
+                "services — View our services & prices\n" +
+                "info — About us\n" +
+                "check my orders — Check your order status\n" +
+                "cancel order — Cancel an existing order\n" +
+                "help — Show this menu";
                 document.getElementById('toggle-ai').checked = config.aiEnabled || false;
                 currentServices = config.services || [];
                 currentQna = config.qna || [];

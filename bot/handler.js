@@ -28,6 +28,7 @@ async function handleMessage(msg) {
                 "hi / hello — Welcome message\n" +
                 "services — View our services & prices\n" +
                 "info — About us\n" +
+                "check my orders — Check your order status\n" +
                 "cancel order — Cancel an existing order\n" +
                 "help — Show this menu";
 
@@ -102,6 +103,7 @@ async function handleMessage(msg) {
         const infoKeywords = ['info', 'about', 'introduction', 'batao', 'kaun'];
         const helpKeywords = ['help', 'commands', 'menu help'];
         const cancelKeywords = ['cancel order', 'cancel my order', 'radd karein'];
+        const checkOrderKeywords = ['check my orders', 'check order', 'order status', 'orders'];
 
         if (greetings.includes(userMessageLower)) {
             reply = welcomeMessage;
@@ -130,6 +132,19 @@ async function handleMessage(msg) {
         } else if (cancelKeywords.some(keyword => userMessageLower.includes(keyword))) {
             await writeData(sessionPath, { state: 'awaiting_cancel_order_id' });
             reply = "Please enter your *Order ID* to cancel the order.";
+            await msg.reply(reply);
+        } else if (checkOrderKeywords.some(keyword => userMessageLower.includes(keyword))) {
+            const orders = await readData('/orders') || {};
+            const userOrders = Object.values(orders).filter(o => o.from === userId);
+
+            if (userOrders.length > 0) {
+                reply = "*Your Active Orders:*\n\n" +
+                    userOrders.map(o => 
+                        `*ID:* ${o.orderId}\n*Service:* ${o.service.name}\n*Status:* ${o.status.toUpperCase()}`
+                    ).join('\n\n');
+            } else {
+                reply = "You don't have any active orders.";
+            }
             await msg.reply(reply);
         } else if (!isNaN(userMessage) && parseInt(userMessage) > 0 && parseInt(userMessage) <= services.length) {
             // Handle "Order by number"
