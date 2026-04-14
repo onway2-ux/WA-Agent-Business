@@ -44,6 +44,16 @@ client.on('ready', async () => {
             try {
                 await client.sendMessage(msgData.to, msgData.body);
                 console.log(`Manual reply sent to ${msgData.to}`);
+
+                // Log manual reply to message logs
+                await db.ref('/logs/messages').push({
+                    from: 'ADMIN',
+                    to: msgData.to,
+                    message: msgData.body,
+                    timestamp: Date.now(),
+                    response: 'Manual Reply'
+                });
+
                 // Mark as sent and then remove
                 await outgoingRef.child(snapshot.key).remove();
             } catch (error) {

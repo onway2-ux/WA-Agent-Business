@@ -24,8 +24,7 @@ async function handleMessage(msg) {
         const qna = config.qna || [];
         const aiEnabled = config.aiEnabled || false;
         const customCommands = config.customCommands || [];
-        const orderPrompt = config.orderPrompt || "Please provide the details for your project. You can type them here.";
-        const helpMessage = config.helpMessage || "*Available Commands:*\n\n" +
+        const orderPrompt = config.orderPrompt || "Please provide the details for your project. You can type them here.\n\n_Type 'cancel' to stop this order._";        const helpMessage = config.helpMessage || "*Available Commands:*\n\n" +
                 "hi / hello — Welcome message\n" +
                 "services — View our services & prices\n" +
                 "info — About us\n" +
@@ -41,6 +40,13 @@ async function handleMessage(msg) {
         // STEP 4 — Handle Session States
         if (session) {
             if (session.state === 'awaiting_order_details') {
+                if (userMessageLower === 'cancel') {
+                    await writeData(sessionPath, null);
+                    reply = "Order process cancelled.";
+                    await msg.reply(reply);
+                    return;
+                }
+
                 const orderId = `ORD-${Date.now().toString().slice(-6)}`;
                 const orderData = {
                     orderId,
