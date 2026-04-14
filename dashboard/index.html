@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Bot Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0a0f1e;
+            --card-bg: #161c2d;
+            --accent-color: #25D366;
+            --text-primary: #ffffff;
+            --text-secondary: #8b949e;
+            --border-color: #2d333b;
+            --danger: #ff4d4d;
+            --sidebar-width: 260px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Login Screen */
+        #login-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-color);
+            z-index: 1000;
+        }
+
+        .login-card {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            text-align: center;
+        }
+
+        .login-card h2 { margin-bottom: 2rem; }
+        .input-group { margin-bottom: 1.5rem; text-align: left; }
+        .input-group label { display: block; margin-bottom: 0.5rem; color: var(--text-secondary); }
+        
+        input, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: #0d1117;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: white;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus, textarea:focus { border-color: var(--accent-color); }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: var(--accent-color);
+            border: none;
+            border-radius: 12px;
+            color: black;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Dashboard Layout */
+        #dashboard { display: none; }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100%;
+            background: var(--card-bg);
+            padding: 2rem 1rem;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(37, 211, 102, 0.1);
+            color: var(--accent-color);
+        }
+
+        .nav-item i { margin-right: 12px; width: 20px; }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-connected { background: rgba(37, 211, 102, 0.1); color: #25D366; }
+        .status-waiting { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
+        .status-offline { background: rgba(255, 77, 77, 0.1); color: #ff4d4d; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* Forms */
+        .form-group { margin-bottom: 1rem; }
+        .btn-save { background: var(--accent-color); color: black; margin-top: 1rem; width: auto; padding: 10px 24px; }
+        .btn-outline { background: transparent; border: 1px solid var(--border-color); color: white; width: auto; }
+
+        /* Mobile Nav */
+        .mobile-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+            padding: 10px;
+            justify-content: space-around;
+            z-index: 999;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-content { margin-left: 0; margin-bottom: 70px; }
+            .mobile-nav { display: flex; }
+        }
+
+        /* Toasts */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 12px;
+            background: var(--accent-color);
+            color: black;
+            font-weight: 600;
+            transform: translateY(-100px);
+            transition: 0.3s;
+            z-index: 2000;
+        }
+        .toast.show { transform: translateY(0); }
+
+        /* Logs */
+        .log-card {
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+        }
+        .log-card:last-child { border-bottom: none; }
+        .log-meta { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .log-body { font-size: 0.95rem; }
+        .log-reply { color: var(--accent-color); margin-top: 0.5rem; font-size: 0.9rem; }
+
+        /* Toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #2d333b;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 4px; bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent-color); }
+        input:checked + .slider:before { transform: translateX(24px); }
+    </style>
+</head>
+<body>
+
+    <div id="toast" class="toast">Saved successfully!</div>
+
+    <!-- Login Screen -->
+    <div id="login-screen">
+        <div class="login-card">
+            <i class="fab fa-whatsapp" style="font-size: 3rem; color: var(--accent-color); margin-bottom: 1rem;"></i>
+            <h2>Bot Admin Login</h2>
+            <div class="input-group">
+                <label>Email Address</label>
+                <input type="email" id="login-email" placeholder="admin@example.com">
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="login-password" placeholder="••••••••">
+            </div>
+            <p id="login-error" style="color: var(--danger); font-size: 0.85rem; margin-bottom: 1rem; display: none;"></p>
+            <button id="btn-login">Login to Dashboard</button>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard">
+        <div class="sidebar">
+            <div style="padding: 0 1rem 2rem 1rem;">
+                <h3 style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fab fa-whatsapp" style="color: var(--accent-color);"></i>
+                    WA Agent
+                </h3>
+            </div>
+            <div class="nav-item active" onclick="showSection('overview')"><i class="fas fa-home"></i> Overview</div>
+            <div class="nav-item" onclick="showSection('welcome')"><i class="fas fa-comment-dots"></i> Welcome Message</div>
+            <div class="nav-item" onclick="showSection('business')"><i class="fas fa-briefcase"></i> Business Info</div>
+            <div class="nav-item" onclick="showSection('services')"><i class="fas fa-list-ul"></i> Services</div>
+            <div class="nav-item" onclick="showSection('qna')"><i class="fas fa-question-circle"></i> Q&A</div>
+            <div class="nav-item" onclick="showSection('ai')"><i class="fas fa-robot"></i> AI Settings</div>
+            <div class="nav-item" onclick="showSection('logs')"><i class="fas fa-history"></i> Message Logs</div>
+            
+            <div style="position: absolute; bottom: 2rem; width: calc(100% - 2rem);">
+                <button onclick="logout()" class="btn-outline" style="width: 100%;"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+        </div>
+
+        <div class="mobile-nav">
+            <div class="nav-item active" onclick="showSection('overview')"><i class="fas fa-home"></i></div>
+            <div class="nav-item" onclick="showSection('services')"><i class="fas fa-list-ul"></i></div>
+            <div class="nav-item" onclick="showSection('ai')"><i class="fas fa-robot"></i></div>
+            <div class="nav-item" onclick="showSection('logs')"><i class="fas fa-history"></i></div>
+        </div>
+
+        <div class="main-content">
+            <!-- 1. Overview -->
+            <section id="section-overview">
+                <header>
+                    <h1>Overview</h1>
+                    <div id="bot-status-badge" class="status-badge status-offline">● Offline</div>
+                </header>
+                
+                <div class="grid">
+                    <div class="card" style="text-align: center;">
+                        <h3>Connection</h3>
+                        <div id="qr-container" style="margin: 1.5rem 0; min-height: 200px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                            <p style="color: var(--text-secondary);">Initializing...</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Bot Stats</h3>
+                        <div style="margin-top: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                                <span style="color: var(--text-secondary);">Last Seen</span>
+                                <span id="stat-lastseen">Never</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">Messages Today</span>
+                                <span id="stat-messages">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. Welcome Message -->
+            <section id="section-welcome" style="display: none;">
+                <header><h1>Welcome Message</h1></header>
+                <div class="card">
+                    <div class="form-group">
+                        <label>Message sent to new users</label>
+                        <textarea id="input-welcome" rows="5" placeholder="Enter welcome message..."></textarea>
+                    </div>
+                    <button class="btn-save" onclick="saveWelcome()">Update Message</button>
+                </div>
+            </section>
+
+            <!-- 3. Business Info -->
+            <section id="section-business" style="display: none;">
+                <header><h1>Business Info</h1></header>
+                <div class="card">
+                    <div class="form-group">
+                        <label>About your business (Used by AI for context)</label>
+                        <textarea id="input-business" rows="8" placeholder="Enter business description..."></textarea>
+                    </div>
+                    <button class="btn-save" onclick="saveBusiness()">Update Info</button>
+                </div>
+            </section>
+
+            <!-- 4. Services Manager -->
+            <section id="section-services" style="display: none;">
+                <header>
+                    <h1>Services</h1>
+                    <button class="btn-save" onclick="showServiceForm()" style="margin: 0;"><i class="fas fa-plus"></i> Add Service</button>
+                </header>
+
+                <div id="service-form" class="card" style="display: none;">
+                    <h3 id="service-form-title">Add Service</h3>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <input type="hidden" id="service-index">
+                        <label>Service Name</label>
+                        <input type="text" id="service-name" placeholder="e.g. Website Development">
+                    </div>
+                    <div class="form-group">
+                        <label>Price</label>
+                        <input type="text" id="service-price" placeholder="e.g. PKR 50,000">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="service-desc" rows="3" placeholder="Describe the service..."></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-save" onclick="saveService()">Save</button>
+                        <button class="btn-outline" onclick="hideServiceForm()">Cancel</button>
+                    </div>
+                </div>
+
+                <div id="services-list" class="grid"></div>
+            </section>
+
+            <!-- 5. Q&A Manager -->
+            <section id="section-qna" style="display: none;">
+                <header>
+                    <h1>Q&A</h1>
+                    <button class="btn-save" onclick="showQnaForm()" style="margin: 0;"><i class="fas fa-plus"></i> Add Q&A</button>
+                </header>
+
+                <div id="qna-form" class="card" style="display: none;">
+                    <h3 id="qna-form-title">Add Q&A</h3>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <input type="hidden" id="qna-index">
+                        <label>Question / Keyword</label>
+                        <input type="text" id="qna-question" placeholder="e.g. location">
+                    </div>
+                    <div class="form-group">
+                        <label>Answer</label>
+                        <textarea id="qna-answer" rows="3" placeholder="Enter response..."></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-save" onclick="saveQna()">Save</button>
+                        <button class="btn-outline" onclick="hideQnaForm()">Cancel</button>
+                    </div>
+                </div>
+
+                <div id="qna-list" class="grid"></div>
+            </section>
+
+            <!-- 6. AI Settings -->
+            <section id="section-ai" style="display: none;">
+                <header><h1>AI Settings</h1></header>
+                <div class="card">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <h3>Enable AI Assistant</h3>
+                            <p style="color: var(--text-secondary); margin-top: 5px;">Use OpenRouter AI for unknown queries</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-ai" onchange="toggleAI()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="margin-top: 2rem; padding: 1.5rem; background: #0d1117; border-radius: 12px; border: 1px solid var(--border-color);">
+                        <i class="fas fa-info-circle" style="color: var(--accent-color); margin-bottom: 10px;"></i>
+                        <p style="font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary);">
+                            When enabled, any message that doesn't match your commands or Q&A will be sent to AI. 
+                            The AI uses your <b>Business Info</b> and <b>Services</b> as context to provide accurate answers.
+                            <br><br>
+                            Ensure you have added <code>OPENROUTER_API_KEY</code> to your GitHub Secrets.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 7. Message Logs -->
+            <section id="section-logs" style="display: none;">
+                <header><h1>Message Logs</h1></header>
+                <div class="card" id="logs-container">
+                    <p style="text-align: center; color: var(--text-secondary);">No messages yet.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, onValue, set, push, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // Firebase Configuration (Updated)
+        const firebaseConfig = {
+            apiKey: "AIzaSyC87fAbEyNAbYMOf0HRTt43PF5q6b9stBE",
+            authDomain: "wa-bot-agent-9adc6.firebaseapp.com",
+            databaseURL: "https://wa-bot-agent-9adc6-default-rtdb.firebaseio.com",
+            projectId: "wa-bot-agent-9adc6",
+            storageBucket: "wa-bot-agent-9adc6.firebasestorage.app",
+            messagingSenderId: "935256783740",
+            appId: "1:935256783740:web:3b1793f420dc05c742c2f9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // Global State
+        let currentServices = [];
+        let currentQna = [];
+
+        // Auth Listener
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                initRealtimeListeners();
+            } else {
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('dashboard').style.display = 'none';
+            }
+        });
+
+        // Login Function
+        window.login = async () => {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-password').value;
+            const btn = document.getElementById('btn-login');
+            const err = document.getElementById('login-error');
+
+            if (!email || !pass) return;
+
+            btn.disabled = true;
+            btn.innerText = 'Logging in...';
+            err.style.display = 'none';
+
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch (error) {
+                err.innerText = error.message;
+                err.style.display = 'block';
+                btn.disabled = false;
+                btn.innerText = 'Login to Dashboard';
+            }
+        };
+
+        document.getElementById('btn-login').addEventListener('click', window.login);
+
+        // Logout Function
+        window.logout = () => signOut(auth);
+
+        // UI Helpers
+        window.showSection = (section) => {
+            document.querySelectorAll('section').forEach(s => s.style.display = 'none');
+            document.getElementById(`section-${section}`).style.display = 'block';
+            
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            event?.currentTarget?.classList.add('active');
+        };
+
+        window.showToast = () => {
+            const t = document.getElementById('toast');
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        };
+
+        // Realtime Listeners
+        function initRealtimeListeners() {
+            // Bot Status & QR
+            onValue(ref(db, 'bot'), (snapshot) => {
+                const data = snapshot.val() || {};
+                const statusBadge = document.getElementById('bot-status-badge');
+                const qrContainer = document.getElementById('qr-container');
+                const lastSeen = document.getElementById('stat-lastseen');
+
+                // Status
+                statusBadge.innerText = `● ${data.status || 'offline'}`;
+                statusBadge.className = `status-badge status-${data.status === 'connected' ? 'connected' : data.status === 'waiting_scan' ? 'waiting' : 'offline'}`;
+
+                // QR Container
+                if (data.status === 'connected') {
+                    qrContainer.innerHTML = `<i class="fas fa-check-circle" style="font-size: 4rem; color: var(--accent-color);"></i><p style="margin-top: 1rem;">Bot Connected ✓</p>`;
+                } else if (data.qr) {
+                    qrContainer.innerHTML = `<img src="${data.qr}" style="max-width: 250px; border-radius: 12px; border: 10px solid white;"><p style="margin-top: 1rem; color: var(--text-secondary);">Scan with WhatsApp to connect</p>`;
+                } else {
+                    qrContainer.innerHTML = `<i class="fas fa-terminal" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i><p style="color: var(--text-secondary);">Run GitHub Actions workflow<br>to generate QR code</p>`;
+                }
+
+                // Stats
+                if (data.lastSeen) {
+                    lastSeen.innerText = new Date(data.lastSeen).toLocaleString();
+                }
+            });
+
+            // Config: Welcome
+            onValue(ref(db, 'config/welcomeMessage'), (snap) => {
+                document.getElementById('input-welcome').value = snap.val() || '';
+            });
+
+            // Config: Business
+            onValue(ref(db, 'config/businessInfo'), (snap) => {
+                document.getElementById('input-business').value = snap.val() || '';
+            });
+
+            // Config: AI Enabled
+            onValue(ref(db, 'config/aiEnabled'), (snap) => {
+                document.getElementById('toggle-ai').checked = snap.val() || false;
+            });
+
+            // Config: Services
+            onValue(ref(db, 'config/services'), (snap) => {
+                currentServices = snap.val() || [];
+                renderServices();
+            });
+
+            // Config: QnA
+            onValue(ref(db, 'config/qna'), (snap) => {
+                currentQna = snap.val() || [];
+                renderQna();
+            });
+
+            // Logs
+            onValue(ref(db, 'logs/messages'), (snap) => {
+                const logs = snap.val() || {};
+                const container = document.getElementById('logs-container');
+                const entries = Object.values(logs).sort((a,b) => b.timestamp - a.timestamp);
+                
+                document.getElementById('stat-messages').innerText = entries.length;
+
+                if (entries.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No messages yet.</p>';
+                    return;
+                }
+
+                container.innerHTML = entries.map(log => `
+                    <div class="log-card">
+                        <div class="log-meta">
+                            <span>From: ${log.from.split('@')[0]}</span> • 
+                            <span>${new Date(log.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="log-body">${log.message}</div>
+                        <div class="log-reply"><b>Reply:</b> ${log.response}</div>
+                    </div>
+                `).join('');
+            });
+        }
+
+        // Save Functions
+        window.saveWelcome = () => {
+            const val = document.getElementById('input-welcome').value;
+            set(ref(db, 'config/welcomeMessage'), val).then(showToast);
+        };
+
+        window.saveBusiness = () => {
+            const val = document.getElementById('input-business').value;
+            set(ref(db, 'config/businessInfo'), val).then(showToast);
+        };
+
+        window.toggleAI = () => {
+            const val = document.getElementById('toggle-ai').checked;
+            set(ref(db, 'config/aiEnabled'), val).then(showToast);
+        };
+
+        // Services CRUD
+        window.showServiceForm = (index = null) => {
+            const form = document.getElementById('service-form');
+            form.style.display = 'block';
+            if (index !== null) {
+                const s = currentServices[index];
+                document.getElementById('service-index').value = index;
+                document.getElementById('service-name').value = s.name;
+                document.getElementById('service-price').value = s.price;
+                document.getElementById('service-desc').value = s.description;
+                document.getElementById('service-form-title').innerText = 'Edit Service';
+            } else {
+                document.getElementById('service-index').value = '';
+                document.getElementById('service-name').value = '';
+                document.getElementById('service-price').value = '';
+                document.getElementById('service-desc').value = '';
+                document.getElementById('service-form-title').innerText = 'Add Service';
+            }
+        };
+
+        window.hideServiceForm = () => document.getElementById('service-form').style.display = 'none';
+
+        window.saveService = () => {
+            const idx = document.getElementById('service-index').value;
+            const newService = {
+                name: document.getElementById('service-name').value,
+                price: document.getElementById('service-price').value,
+                description: document.getElementById('service-desc').value
+            };
+
+            if (idx === '') {
+                currentServices.push(newService);
+            } else {
+                currentServices[idx] = newService;
+            }
+
+            set(ref(db, 'config/services'), currentServices).then(() => {
+                hideServiceForm();
+                showToast();
+            });
+        };
+
+        window.deleteService = (idx) => {
+            if (confirm('Delete this service?')) {
+                currentServices.splice(idx, 1);
+                set(ref(db, 'config/services'), currentServices).then(showToast);
+            }
+        };
+
+        function renderServices() {
+            const list = document.getElementById('services-list');
+            list.innerHTML = currentServices.map((s, i) => `
+                <div class="card">
+                    <h3 style="color: var(--accent-color);">${s.name}</h3>
+                    <p style="margin: 0.5rem 0; font-weight: 600;">${s.price}</p>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">${s.description}</p>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-outline" onclick="showServiceForm(${i})" style="padding: 6px 12px; font-size: 0.8rem;">Edit</button>
+                        <button class="btn-outline" onclick="deleteService(${i})" style="padding: 6px 12px; font-size: 0.8rem; border-color: var(--danger); color: var(--danger);">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // QnA CRUD
+        window.showQnaForm = (index = null) => {
+            const form = document.getElementById('qna-form');
+            form.style.display = 'block';
+            if (index !== null) {
+                const q = currentQna[index];
+                document.getElementById('qna-index').value = index;
+                document.getElementById('qna-question').value = q.question;
+                document.getElementById('qna-answer').value = q.answer;
+                document.getElementById('qna-form-title').innerText = 'Edit Q&A';
+            } else {
+                document.getElementById('qna-index').value = '';
+                document.getElementById('qna-question').value = '';
+                document.getElementById('qna-answer').value = '';
+                document.getElementById('qna-form-title').innerText = 'Add Q&A';
+            }
+        };
+
+        window.hideQnaForm = () => document.getElementById('qna-form').style.display = 'none';
+
+        window.saveQna = () => {
+            const idx = document.getElementById('qna-index').value;
+            const newQna = {
+                question: document.getElementById('qna-question').value,
+                answer: document.getElementById('qna-answer').value
+            };
+
+            if (idx === '') {
+                currentQna.push(newQna);
+            } else {
+                currentQna[idx] = newQna;
+            }
+
+            set(ref(db, 'config/qna'), currentQna).then(() => {
+                hideQnaForm();
+                showToast();
+            });
+        };
+
+        window.deleteQna = (idx) => {
+            if (confirm('Delete this Q&A?')) {
+                currentQna.splice(idx, 1);
+                set(ref(db, 'config/qna'), currentQna).then(showToast);
+            }
+        };
+
+        function renderQna() {
+            const list = document.getElementById('qna-list');
+            list.innerHTML = currentQna.map((q, i) => `
+                <div class="card">
+                    <h4 style="margin-bottom: 0.5rem;">Q: ${q.question}</h4>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">A: ${q.answer}</p>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-outline" onclick="showQnaForm(${i})" style="padding: 6px 12px; font-size: 0.8rem;">Edit</button>
+                        <button class="btn-outline" onclick="deleteQna(${i})" style="padding: 6px 12px; font-size: 0.8rem; border-color: var(--danger); color: var(--danger);">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

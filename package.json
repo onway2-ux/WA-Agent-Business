@@ -1,0 +1,23 @@
+{
+  "name": "wa-bot-agent",
+  "version": "1.0.0",
+  "description": "WhatsApp Business Bot with Admin Dashboard",
+  "main": "bot/index.js",
+  "scripts": {
+    "start": "node bot/index.js"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "latest",
+    "firebase-admin": "latest",
+    "axios": "latest",
+    "openai": "latest",
+    "qrcode": "latest",
+    "qrcode-terminal": "latest",
+    "puppeteer": "latest"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "author": "",
+  "license": "ISC"
+}
