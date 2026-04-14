@@ -2,6 +2,7 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const { generateAndSaveQR } = require('./qr');
 const { writeData, readData } = require('./firebase');
 const { handleMessage } = require('./handler');
+const admin = require('firebase-admin');
 
 // Initialize WhatsApp Client
 const client = new Client({
@@ -32,6 +33,24 @@ client.on('ready', async () => {
     console.log("WhatsApp connected!");
     await writeData('/bot/status', 'connected');
     await writeData('/bot/qr', null);
+
+    // Listen for outgoing messages from Admin Dashboard
+    const db = admin.database();
+    const outgoingRef = db.ref('/outgoing_messages');
+    
+    outgoingRef.on('child_added', async (snapshot) => {
+        const msgData = snapshot.val();
+        if (msgData && !msgData.sent) {
+            try {
+                await client.sendMessage(msgData.to, msgData.body);
+                console.log(`Manual reply sent to ${msgData.to}`);
+                // Mark as sent and then remove
+                await outgoingRef.child(snapshot.key).remove();
+            } catch (error) {
+                console.error("Error sending manual reply:", error.message);
+            }
+        }
+    });
 });
 
 // Event: Auth Failure

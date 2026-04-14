@@ -25,37 +25,69 @@ async function handleMessage(msg) {
         const aiEnabled = config.aiEnabled || false;
         const customCommands = config.customCommands || [];
         const orderPrompt = config.orderPrompt || "Please provide the details for your project. You can type them here.";
+        const helpMessage = config.helpMessage || "*Available Commands:*\n\n" +
+                "hi / hello — Welcome message\n" +
+                "services — View our services & prices\n" +
+                "info — About us\n" +
+                "cancel order — Cancel an existing order\n" +
+                "help — Show this menu";
 
-        // Check user session for ordering process
-        const session = await readData(`/sessions/${userId.replace(/\./g, '_')}`) || null;
+        // Check user session for multi-step processes
+        const sessionPath = `/sessions/${userId.replace(/\./g, '_')}`;
+        const session = await readData(sessionPath) || null;
 
         let reply = "";
 
-        // STEP 4 — Handle ordering state
-        if (session && session.state === 'awaiting_order_details') {
-            const orderId = `ORD-${Date.now().toString().slice(-6)}`;
-            const orderData = {
-                orderId,
-                service: session.service,
-                details: userMessage,
-                from: userId,
-                timestamp: Date.now(),
-                status: 'pending'
-            };
+        // STEP 4 — Handle Session States
+        if (session) {
+            if (session.state === 'awaiting_order_details') {
+                const orderId = `ORD-${Date.now().toString().slice(-6)}`;
+                const orderData = {
+                    orderId,
+                    service: session.service,
+                    details: userMessage,
+                    from: userId,
+                    timestamp: Date.now(),
+                    status: 'pending'
+                };
 
-            await pushData('/orders', orderData);
-            
-            // Clear session
-            await writeData(`/sessions/${userId.replace(/\./g, '_')}`, null);
+                await pushData('/orders', orderData);
+                await writeData(sessionPath, null); // Clear session
 
-            reply = `✅ *Order Placed Successfully!*\n\n` +
-                    `*Order ID:* ${orderId}\n` +
-                    `*Service:* ${session.service.name}\n` +
-                    `*Details:* ${userMessage}\n\n` +
-                    `We will contact you Soon. Thank you for choosing us!`;
-            
-            await msg.reply(reply);
-            return;
+                reply = `✅ *Order Placed Successfully!*\n\n` +
+                        `*Order ID:* ${orderId}\n` +
+                        `*Service:* ${session.service.name}\n` +
+                        `*Details:* ${userMessage}\n\n` +
+                        `We will contact you Soon. Thank you for choosing us!`;
+                
+                await msg.reply(reply);
+                return;
+            } else if (session.state === 'awaiting_cancel_order_id') {
+                const orders = await readData('/orders') || {};
+                const orderEntries = Object.entries(orders);
+                let orderFoundKey = null;
+
+                for (const [key, order] of orderEntries) {
+                    if (order.orderId === userMessage.toUpperCase() && order.from === userId) {
+                        orderFoundKey = key;
+                        break;
+                    }
+                }
+
+                if (orderFoundKey) {
+                    await writeData(`/orders/${orderFoundKey}/status`, 'cancelled');
+                    await writeData(sessionPath, null); // Clear session
+                    reply = `✅ *Order ${userMessage.toUpperCase()} Cancelled Successfully.*`;
+                } else {
+                    reply = `❌ *Invalid Order ID or the order does not belong to you.* Please try again or type 'cancel' to exit.`;
+                    if (userMessageLower === 'cancel' || userMessageLower === 'exit') {
+                        await writeData(sessionPath, null);
+                        reply = "Process cancelled.";
+                    }
+                }
+                await msg.reply(reply);
+                return;
+            }
         }
 
         // STEP 5 — Command matching
@@ -63,6 +95,7 @@ async function handleMessage(msg) {
         const serviceKeywords = ['services', 'menu', 'price', 'rates', 'kya hai', 'kya dete'];
         const infoKeywords = ['info', 'about', 'introduction', 'batao', 'kaun'];
         const helpKeywords = ['help', 'commands', 'menu help'];
+        const cancelKeywords = ['cancel order', 'cancel my order', 'radd karein'];
 
         if (greetings.includes(userMessageLower)) {
             reply = welcomeMessage;
@@ -82,25 +115,22 @@ async function handleMessage(msg) {
             reply = businessInfo;
             await msg.reply(reply);
         } else if (helpKeywords.some(keyword => userMessageLower.includes(keyword))) {
-            reply = "*Available Commands:*\n\n" +
-                "hi / hello — Welcome message\n" +
-                "services — View our services & prices\n" +
-                "info — About us\n" +
-                "help — Show this menu";
-            
-            // Add custom commands to help
-            if (customCommands.length > 0) {
+            reply = helpMessage;
+            // Add custom commands to help if they aren't already there
+            if (customCommands.length > 0 && !helpMessage.toLowerCase().includes('custom commands')) {
                 reply += "\n\n*Custom Commands:*\n" + customCommands.map(c => c.command).join('\n');
             }
-            
+            await msg.reply(reply);
+        } else if (cancelKeywords.some(keyword => userMessageLower.includes(keyword))) {
+            await writeData(sessionPath, { state: 'awaiting_cancel_order_id' });
+            reply = "Please enter your *Order ID* to cancel the order.";
             await msg.reply(reply);
         } else if (!isNaN(userMessage) && parseInt(userMessage) > 0 && parseInt(userMessage) <= services.length) {
             // Handle "Order by number"
             const serviceIndex = parseInt(userMessage) - 1;
             const selectedService = services[serviceIndex];
             
-            // Set session state
-            await writeData(`/sessions/${userId.replace(/\./g, '_')}`, {
+            await writeData(sessionPath, {
                 state: 'awaiting_order_details',
                 service: selectedService
             });
@@ -151,20 +181,17 @@ async function handleMessage(msg) {
             response: reply
         });
 
-        // STEP 7 — Trim logs to 100
+        // STEP 7 — Trim logs
         const allLogs = await readData('/logs/messages');
         if (allLogs) {
             const logEntries = Object.entries(allLogs);
             if (logEntries.length > 100) {
                 const trimmedLogs = Object.fromEntries(
-                    logEntries
-                        .sort((a, b) => b[1].timestamp - a[1].timestamp)
-                        .slice(0, 100)
+                    logEntries.sort((a, b) => b[1].timestamp - a[1].timestamp).slice(0, 100)
                 );
                 await writeData('/logs/messages', trimmedLogs);
             }
         }
-
     } catch (error) {
         console.error("Error in handleMessage:", error.message);
     }

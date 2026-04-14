@@ -153,6 +153,8 @@
         .status-connected { background: rgba(37, 211, 102, 0.1); color: #25D366; }
         .status-waiting { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
         .status-offline { background: rgba(255, 77, 77, 0.1); color: #ff4d4d; }
+        .status-completed { background: rgba(37, 211, 102, 0.1); color: #25D366; }
+        .status-cancelled { background: rgba(255, 77, 77, 0.1); color: #ff4d4d; }
 
         .grid {
             display: grid;
@@ -252,13 +254,51 @@
         .order-time { font-size: 0.8rem; color: var(--text-secondary); }
         .order-service { font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem; }
         .order-details { font-size: 0.95rem; background: #0d1117; padding: 1rem; border-radius: 12px; color: var(--text-secondary); line-height: 1.4; }
-        .order-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); }
+        .order-footer { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); }
         .order-phone { font-size: 0.9rem; font-weight: 500; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1500;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid var(--border-color);
+        }
     </style>
 </head>
 <body>
 
     <div id="toast" class="toast">Saved successfully!</div>
+
+    <!-- Manual Reply Modal -->
+    <div id="reply-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 1.5rem;">Reply to Customer</h2>
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="text" id="reply-to" readonly style="opacity: 0.7;">
+            </div>
+            <div class="form-group">
+                <label>Your Message</label>
+                <textarea id="reply-body" rows="5" placeholder="Type your reply here..."></textarea>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-save" id="btn-send-reply">Send Message</button>
+                <button class="btn-outline" onclick="closeReplyModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Login Screen -->
     <div id="login-screen">
@@ -357,11 +397,15 @@
                     </div>
                     <div class="form-group">
                         <label>Business Description (AI Context)</label>
-                        <textarea id="input-business" rows="5" placeholder="Enter business description..."></textarea>
+                        <textarea id="input-business" rows="4" placeholder="Enter business description..."></textarea>
                     </div>
                     <div class="form-group">
                         <label>Order Prompt (Asking for details)</label>
                         <textarea id="input-order-prompt" rows="3" placeholder="e.g. Please provide your project details..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Help Message (Commands List)</label>
+                        <textarea id="input-help-message" rows="6" placeholder="Available commands list..."></textarea>
                     </div>
                     <button class="btn-save" onclick="saveConfig()">Update All Config</button>
                 </div>
@@ -471,8 +515,6 @@
                         <p style="font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary);">
                             When enabled, any message that doesn't match your commands or Q&A will be sent to AI. 
                             The AI uses your <b>Business Info</b> and <b>Services</b> as context to provide accurate answers.
-                            <br><br>
-                            Ensure you have added <code>OPENROUTER_API_KEY</code> to your GitHub Secrets.
                         </p>
                     </div>
                 </div>
@@ -531,20 +573,10 @@
             const pass = document.getElementById('login-password').value;
             const btn = document.getElementById('btn-login');
             const err = document.getElementById('login-error');
-
             if (!email || !pass) return;
-
-            btn.disabled = true;
-            btn.innerText = 'Logging in...';
-            err.style.display = 'none';
-
-            try {
-                await signInWithEmailAndPassword(auth, email, pass);
-            } catch (error) {
-                err.innerText = error.message;
-                err.style.display = 'block';
-                btn.disabled = false;
-                btn.innerText = 'Login to Dashboard';
+            btn.disabled = true; btn.innerText = 'Logging in...'; err.style.display = 'none';
+            try { await signInWithEmailAndPassword(auth, email, pass); } catch (error) {
+                err.innerText = error.message; err.style.display = 'block'; btn.disabled = false; btn.innerText = 'Login to Dashboard';
             }
         };
 
@@ -584,13 +616,12 @@
                 document.getElementById('input-welcome').value = config.welcomeMessage || '';
                 document.getElementById('input-business').value = config.businessInfo || '';
                 document.getElementById('input-order-prompt').value = config.orderPrompt || '';
+                document.getElementById('input-help-message').value = config.helpMessage || '';
                 document.getElementById('toggle-ai').checked = config.aiEnabled || false;
                 currentServices = config.services || [];
                 currentQna = config.qna || [];
                 currentCommands = config.customCommands || [];
-                renderServices();
-                renderQna();
-                renderCommands();
+                renderServices(); renderQna(); renderCommands();
             });
 
             // Orders listener
@@ -605,17 +636,18 @@
                 list.innerHTML = entries.map(o => `
                     <div class="order-card">
                         <div class="order-header">
-                            <div>
-                                <span class="order-id">${o.orderId}</span>
-                                <div class="order-time">${new Date(o.timestamp).toLocaleString()}</div>
-                            </div>
-                            <span class="status-badge status-waiting">Pending</span>
+                            <div><span class="order-id">${o.orderId}</span><div class="order-time">${new Date(o.timestamp).toLocaleString()}</div></div>
+                            <span class="status-badge status-${o.status}">${o.status.charAt(0).toUpperCase() + o.status.slice(1)}</span>
                         </div>
                         <div class="order-service">${o.service.name}</div>
                         <div class="order-details">${o.details}</div>
                         <div class="order-footer">
                             <span class="order-phone"><i class="fab fa-whatsapp"></i> ${o.from.split('@')[0]}</span>
-                            <button class="btn-outline" onclick="deleteOrder('${o.orderId}')" style="border-color: var(--danger); color: var(--danger); padding: 5px 15px;">Delete</button>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn-outline" onclick="openReplyModal('${o.from}')" style="border-color: var(--accent-color); color: var(--accent-color);">Reply</button>
+                                ${o.status === 'pending' ? `<button class="btn-outline" onclick="updateOrderStatus('${o.orderId}', 'completed')">Complete</button>` : `<button class="btn-outline" onclick="updateOrderStatus('${o.orderId}', 'pending')">Re-open</button>`}
+                                <button class="btn-outline" onclick="deleteOrder('${o.orderId}')" style="border-color: var(--danger); color: var(--danger);">Delete</button>
+                            </div>
                         </div>
                     </div>
                 `).join('');
@@ -645,14 +677,47 @@
             const updates = {
                 welcomeMessage: document.getElementById('input-welcome').value,
                 businessInfo: document.getElementById('input-business').value,
-                orderPrompt: document.getElementById('input-order-prompt').value
+                orderPrompt: document.getElementById('input-order-prompt').value,
+                helpMessage: document.getElementById('input-help-message').value
             };
             update(ref(db, 'config'), updates).then(showToast);
         };
 
         window.toggleAI = () => set(ref(db, 'config/aiEnabled'), document.getElementById('toggle-ai').checked).then(showToast);
 
-        // Services CRUD
+        // Orders Status & Manual Reply
+        window.updateOrderStatus = (orderId, newStatus) => {
+            const ordersRef = ref(db, 'orders');
+            onValue(ordersRef, (snap) => {
+                const orders = snap.val();
+                for (let key in orders) {
+                    if (orders[key].orderId === orderId) {
+                        update(ref(db, `orders/${key}`), { status: newStatus }).then(showToast);
+                        break;
+                    }
+                }
+            }, { onlyOnce: true });
+        };
+
+        window.openReplyModal = (phone) => {
+            document.getElementById('reply-to').value = phone;
+            document.getElementById('reply-body').value = '';
+            document.getElementById('reply-modal').style.display = 'flex';
+        };
+
+        window.closeReplyModal = () => document.getElementById('reply-modal').style.display = 'none';
+
+        document.getElementById('btn-send-reply').onclick = async () => {
+            const to = document.getElementById('reply-to').value;
+            const body = document.getElementById('reply-body').value;
+            if (!body) return;
+            
+            await push(ref(db, 'outgoing_messages'), { to, body, timestamp: Date.now(), sent: false });
+            closeReplyModal();
+            showToast();
+        };
+
+        // Services, Commands, QnA CRUD (Same as before)
         window.showServiceForm = (idx = null) => {
             document.getElementById('service-form').style.display = 'block';
             if (idx !== null) {
@@ -663,10 +728,8 @@
                 document.getElementById('service-desc').value = s.description;
                 document.getElementById('service-form-title').innerText = 'Edit Service';
             } else {
-                document.getElementById('service-index').value = '';
-                document.getElementById('service-name').value = '';
-                document.getElementById('service-price').value = '';
-                document.getElementById('service-desc').value = '';
+                document.getElementById('service-index').value = ''; document.getElementById('service-name').value = '';
+                document.getElementById('service-price').value = ''; document.getElementById('service-desc').value = '';
                 document.getElementById('service-form-title').innerText = 'Add Service';
             }
         };
@@ -681,28 +744,22 @@
         function renderServices() {
             document.getElementById('services-list').innerHTML = currentServices.map((s, i) => `
                 <div class="card">
-                    <h3 style="color: var(--accent-color);">${s.name}</h3>
-                    <p style="margin: 0.5rem 0; font-weight: 600;">${s.price}</p>
+                    <h3 style="color: var(--accent-color);">${s.name}</h3><p style="margin: 0.5rem 0; font-weight: 600;">${s.price}</p>
                     <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">${s.description}</p>
                     <div style="display: flex; gap: 10px;"><button class="btn-outline" onclick="showServiceForm(${i})">Edit</button><button class="btn-outline" onclick="deleteService(${i})" style="border-color: var(--danger); color: var(--danger);">Delete</button></div>
                 </div>
             `).join('');
         }
 
-        // Custom Commands CRUD
         window.showCommandForm = (idx = null) => {
             document.getElementById('command-form').style.display = 'block';
             if (idx !== null) {
                 const c = currentCommands[idx];
-                document.getElementById('command-index').value = idx;
-                document.getElementById('command-trigger').value = c.command;
-                document.getElementById('command-reply').value = c.reply;
-                document.getElementById('command-form-title').innerText = 'Edit Command';
+                document.getElementById('command-index').value = idx; document.getElementById('command-trigger').value = c.command;
+                document.getElementById('command-reply').value = c.reply; document.getElementById('command-form-title').innerText = 'Edit Command';
             } else {
-                document.getElementById('command-index').value = '';
-                document.getElementById('command-trigger').value = '';
-                document.getElementById('command-reply').value = '';
-                document.getElementById('command-form-title').innerText = 'Add Command';
+                document.getElementById('command-index').value = ''; document.getElementById('command-trigger').value = '';
+                document.getElementById('command-reply').value = ''; document.getElementById('command-form-title').innerText = 'Add Command';
             }
         };
         window.hideCommandForm = () => document.getElementById('command-form').style.display = 'none';
@@ -716,25 +773,19 @@
         function renderCommands() {
             document.getElementById('commands-list').innerHTML = currentCommands.map((c, i) => `
                 <div class="card">
-                    <h3 style="color: var(--accent-color);">/${c.command}</h3>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 1rem 0;">${c.reply}</p>
+                    <h3 style="color: var(--accent-color);">/${c.command}</h3><p style="color: var(--text-secondary); font-size: 0.9rem; margin: 1rem 0;">${c.reply}</p>
                     <div style="display: flex; gap: 10px;"><button class="btn-outline" onclick="showCommandForm(${i})">Edit</button><button class="btn-outline" onclick="deleteCommand(${i})" style="border-color: var(--danger); color: var(--danger);">Delete</button></div>
                 </div>
             `).join('');
         }
 
-        // QnA CRUD (Simplified from before)
         window.showQnaForm = (idx = null) => {
             document.getElementById('qna-form').style.display = 'block';
             if (idx !== null) {
                 const q = currentQna[idx];
-                document.getElementById('qna-index').value = idx;
-                document.getElementById('qna-question').value = q.question;
-                document.getElementById('qna-answer').value = q.answer;
+                document.getElementById('qna-index').value = idx; document.getElementById('qna-question').value = q.question; document.getElementById('qna-answer').value = q.answer;
             } else {
-                document.getElementById('qna-index').value = '';
-                document.getElementById('qna-question').value = '';
-                document.getElementById('qna-answer').value = '';
+                document.getElementById('qna-index').value = ''; document.getElementById('qna-question').value = ''; document.getElementById('qna-answer').value = '';
             }
         };
         window.hideQnaForm = () => document.getElementById('qna-form').style.display = 'none';
@@ -748,23 +799,19 @@
         function renderQna() {
             document.getElementById('qna-list').innerHTML = currentQna.map((q, i) => `
                 <div class="card">
-                    <h4>Q: ${q.question}</h4>
-                    <p style="color: var(--text-secondary); margin: 0.5rem 0;">A: ${q.answer}</p>
+                    <h4>Q: ${q.question}</h4><p style="color: var(--text-secondary); margin: 0.5rem 0;">A: ${q.answer}</p>
                     <div style="display: flex; gap: 10px;"><button class="btn-outline" onclick="showQnaForm(${i})">Edit</button><button class="btn-outline" onclick="deleteQna(${i})" style="border-color: var(--danger); color: var(--danger);">Delete</button></div>
                 </div>
             `).join('');
         }
 
         window.deleteOrder = (orderId) => {
-            if (confirm('Mark as completed and delete?')) {
+            if (confirm('Delete this order?')) {
                 const ordersRef = ref(db, 'orders');
                 onValue(ordersRef, (snap) => {
                     const orders = snap.val();
                     for (let key in orders) {
-                        if (orders[key].orderId === orderId) {
-                            remove(ref(db, `orders/${key}`));
-                            break;
-                        }
+                        if (orders[key].orderId === orderId) { remove(ref(db, `orders/${key}`)); break; }
                     }
                 }, { onlyOnce: true });
             }
