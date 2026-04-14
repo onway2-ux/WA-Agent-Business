@@ -238,6 +238,22 @@
         }
         input:checked + .slider { background-color: var(--accent-color); }
         input:checked + .slider:before { transform: translateX(24px); }
+
+        /* Orders */
+        .order-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .order-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .order-id { font-weight: 700; color: var(--accent-color); }
+        .order-time { font-size: 0.8rem; color: var(--text-secondary); }
+        .order-service { font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem; }
+        .order-details { font-size: 0.95rem; background: #0d1117; padding: 1rem; border-radius: 12px; color: var(--text-secondary); line-height: 1.4; }
+        .order-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); }
+        .order-phone { font-size: 0.9rem; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -272,9 +288,10 @@
                 </h3>
             </div>
             <div class="nav-item active" onclick="showSection('overview')"><i class="fas fa-home"></i> Overview</div>
-            <div class="nav-item" onclick="showSection('welcome')"><i class="fas fa-comment-dots"></i> Welcome Message</div>
-            <div class="nav-item" onclick="showSection('business')"><i class="fas fa-briefcase"></i> Business Info</div>
+            <div class="nav-item" onclick="showSection('orders')"><i class="fas fa-shopping-cart"></i> Orders</div>
+            <div class="nav-item" onclick="showSection('welcome')"><i class="fas fa-comment-dots"></i> Config & Prompts</div>
             <div class="nav-item" onclick="showSection('services')"><i class="fas fa-list-ul"></i> Services</div>
+            <div class="nav-item" onclick="showSection('commands')"><i class="fas fa-terminal"></i> Custom Commands</div>
             <div class="nav-item" onclick="showSection('qna')"><i class="fas fa-question-circle"></i> Q&A</div>
             <div class="nav-item" onclick="showSection('ai')"><i class="fas fa-robot"></i> AI Settings</div>
             <div class="nav-item" onclick="showSection('logs')"><i class="fas fa-history"></i> Message Logs</div>
@@ -286,9 +303,9 @@
 
         <div class="mobile-nav">
             <div class="nav-item active" onclick="showSection('overview')"><i class="fas fa-home"></i></div>
-            <div class="nav-item" onclick="showSection('services')"><i class="fas fa-list-ul"></i></div>
-            <div class="nav-item" onclick="showSection('ai')"><i class="fas fa-robot"></i></div>
+            <div class="nav-item" onclick="showSection('orders')"><i class="fas fa-shopping-cart"></i></div>
             <div class="nav-item" onclick="showSection('logs')"><i class="fas fa-history"></i></div>
+            <div class="nav-item" onclick="showSection('ai')"><i class="fas fa-robot"></i></div>
         </div>
 
         <div class="main-content">
@@ -322,27 +339,31 @@
                 </div>
             </section>
 
-            <!-- 2. Welcome Message -->
-            <section id="section-welcome" style="display: none;">
-                <header><h1>Welcome Message</h1></header>
-                <div class="card">
-                    <div class="form-group">
-                        <label>Message sent to new users</label>
-                        <textarea id="input-welcome" rows="5" placeholder="Enter welcome message..."></textarea>
-                    </div>
-                    <button class="btn-save" onclick="saveWelcome()">Update Message</button>
+            <!-- Orders Section -->
+            <section id="section-orders" style="display: none;">
+                <header><h1>Client Orders</h1></header>
+                <div id="orders-list">
+                    <p style="text-align: center; color: var(--text-secondary);">No orders yet.</p>
                 </div>
             </section>
 
-            <!-- 3. Business Info -->
-            <section id="section-business" style="display: none;">
-                <header><h1>Business Info</h1></header>
+            <!-- 2. Config & Prompts -->
+            <section id="section-welcome" style="display: none;">
+                <header><h1>Config & Prompts</h1></header>
                 <div class="card">
                     <div class="form-group">
-                        <label>About your business (Used by AI for context)</label>
-                        <textarea id="input-business" rows="8" placeholder="Enter business description..."></textarea>
+                        <label>Welcome Message</label>
+                        <textarea id="input-welcome" rows="3" placeholder="Enter welcome message..."></textarea>
                     </div>
-                    <button class="btn-save" onclick="saveBusiness()">Update Info</button>
+                    <div class="form-group">
+                        <label>Business Description (AI Context)</label>
+                        <textarea id="input-business" rows="5" placeholder="Enter business description..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Order Prompt (Asking for details)</label>
+                        <textarea id="input-order-prompt" rows="3" placeholder="e.g. Please provide your project details..."></textarea>
+                    </div>
+                    <button class="btn-save" onclick="saveConfig()">Update All Config</button>
                 </div>
             </section>
 
@@ -375,6 +396,33 @@
                 </div>
 
                 <div id="services-list" class="grid"></div>
+            </section>
+
+            <!-- Custom Commands Section -->
+            <section id="section-commands" style="display: none;">
+                <header>
+                    <h1>Custom Commands</h1>
+                    <button class="btn-save" onclick="showCommandForm()" style="margin: 0;"><i class="fas fa-plus"></i> Add Command</button>
+                </header>
+
+                <div id="command-form" class="card" style="display: none;">
+                    <h3 id="command-form-title">Add Command</h3>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <input type="hidden" id="command-index">
+                        <label>Command (e.g. 'price')</label>
+                        <input type="text" id="command-trigger" placeholder="e.g. price">
+                    </div>
+                    <div class="form-group">
+                        <label>Reply Message</label>
+                        <textarea id="command-reply" rows="3" placeholder="Enter automated response..."></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-save" onclick="saveCommand()">Save</button>
+                        <button class="btn-outline" onclick="hideCommandForm()">Cancel</button>
+                    </div>
+                </div>
+
+                <div id="commands-list" class="grid"></div>
             </section>
 
             <!-- 5. Q&A Manager -->
@@ -444,9 +492,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getDatabase, ref, onValue, set, push, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, onValue, set, push, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // Firebase Configuration (Updated)
         const firebaseConfig = {
             apiKey: "AIzaSyC87fAbEyNAbYMOf0HRTt43PF5q6b9stBE",
             authDomain: "wa-bot-agent-9adc6.firebaseapp.com",
@@ -464,6 +511,7 @@
         // Global State
         let currentServices = [];
         let currentQna = [];
+        let currentCommands = [];
 
         // Auth Listener
         onAuthStateChanged(auth, (user) => {
@@ -501,15 +549,11 @@
         };
 
         document.getElementById('btn-login').addEventListener('click', window.login);
-
-        // Logout Function
         window.logout = () => signOut(auth);
 
-        // UI Helpers
         window.showSection = (section) => {
             document.querySelectorAll('section').forEach(s => s.style.display = 'none');
             document.getElementById(`section-${section}`).style.display = 'block';
-            
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             event?.currentTarget?.classList.add('active');
         };
@@ -520,80 +564,76 @@
             setTimeout(() => t.classList.remove('show'), 3000);
         };
 
-        // Realtime Listeners
         function initRealtimeListeners() {
-            // Bot Status & QR
-            onValue(ref(db, 'bot'), (snapshot) => {
-                const data = snapshot.val() || {};
-                const statusBadge = document.getElementById('bot-status-badge');
-                const qrContainer = document.getElementById('qr-container');
-                const lastSeen = document.getElementById('stat-lastseen');
-
-                // Status
-                statusBadge.innerText = `● ${data.status || 'offline'}`;
-                statusBadge.className = `status-badge status-${data.status === 'connected' ? 'connected' : data.status === 'waiting_scan' ? 'waiting' : 'offline'}`;
-
-                // QR Container
+            // Bot Status
+            onValue(ref(db, 'bot'), (snap) => {
+                const data = snap.val() || {};
+                document.getElementById('bot-status-badge').innerText = `● ${data.status || 'offline'}`;
+                document.getElementById('bot-status-badge').className = `status-badge status-${data.status === 'connected' ? 'connected' : data.status === 'waiting_scan' ? 'waiting' : 'offline'}`;
                 if (data.status === 'connected') {
-                    qrContainer.innerHTML = `<i class="fas fa-check-circle" style="font-size: 4rem; color: var(--accent-color);"></i><p style="margin-top: 1rem;">Bot Connected ✓</p>`;
+                    document.getElementById('qr-container').innerHTML = `<i class="fas fa-check-circle" style="font-size: 4rem; color: var(--accent-color);"></i><p style="margin-top: 1rem;">Bot Connected ✓</p>`;
                 } else if (data.qr) {
-                    qrContainer.innerHTML = `<img src="${data.qr}" style="max-width: 250px; border-radius: 12px; border: 10px solid white;"><p style="margin-top: 1rem; color: var(--text-secondary);">Scan with WhatsApp to connect</p>`;
-                } else {
-                    qrContainer.innerHTML = `<i class="fas fa-terminal" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i><p style="color: var(--text-secondary);">Run GitHub Actions workflow<br>to generate QR code</p>`;
+                    document.getElementById('qr-container').innerHTML = `<img src="${data.qr}" style="max-width: 250px; border-radius: 12px; border: 10px solid white;"><p style="margin-top: 1rem; color: var(--text-secondary);">Scan with WhatsApp to connect</p>`;
                 }
-
-                // Stats
-                if (data.lastSeen) {
-                    lastSeen.innerText = new Date(data.lastSeen).toLocaleString();
-                }
+                if (data.lastSeen) document.getElementById('stat-lastseen').innerText = new Date(data.lastSeen).toLocaleString();
             });
 
-            // Config: Welcome
-            onValue(ref(db, 'config/welcomeMessage'), (snap) => {
-                document.getElementById('input-welcome').value = snap.val() || '';
-            });
-
-            // Config: Business
-            onValue(ref(db, 'config/businessInfo'), (snap) => {
-                document.getElementById('input-business').value = snap.val() || '';
-            });
-
-            // Config: AI Enabled
-            onValue(ref(db, 'config/aiEnabled'), (snap) => {
-                document.getElementById('toggle-ai').checked = snap.val() || false;
-            });
-
-            // Config: Services
-            onValue(ref(db, 'config/services'), (snap) => {
-                currentServices = snap.val() || [];
+            // Config listeners
+            onValue(ref(db, 'config'), (snap) => {
+                const config = snap.val() || {};
+                document.getElementById('input-welcome').value = config.welcomeMessage || '';
+                document.getElementById('input-business').value = config.businessInfo || '';
+                document.getElementById('input-order-prompt').value = config.orderPrompt || '';
+                document.getElementById('toggle-ai').checked = config.aiEnabled || false;
+                currentServices = config.services || [];
+                currentQna = config.qna || [];
+                currentCommands = config.customCommands || [];
                 renderServices();
-            });
-
-            // Config: QnA
-            onValue(ref(db, 'config/qna'), (snap) => {
-                currentQna = snap.val() || [];
                 renderQna();
+                renderCommands();
             });
 
-            // Logs
+            // Orders listener
+            onValue(ref(db, 'orders'), (snap) => {
+                const orders = snap.val() || {};
+                const list = document.getElementById('orders-list');
+                const entries = Object.values(orders).sort((a,b) => b.timestamp - a.timestamp);
+                if (entries.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No orders yet.</p>';
+                    return;
+                }
+                list.innerHTML = entries.map(o => `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div>
+                                <span class="order-id">${o.orderId}</span>
+                                <div class="order-time">${new Date(o.timestamp).toLocaleString()}</div>
+                            </div>
+                            <span class="status-badge status-waiting">Pending</span>
+                        </div>
+                        <div class="order-service">${o.service.name}</div>
+                        <div class="order-details">${o.details}</div>
+                        <div class="order-footer">
+                            <span class="order-phone"><i class="fab fa-whatsapp"></i> ${o.from.split('@')[0]}</span>
+                            <button class="btn-outline" onclick="deleteOrder('${o.orderId}')" style="border-color: var(--danger); color: var(--danger); padding: 5px 15px;">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            });
+
+            // Logs listener
             onValue(ref(db, 'logs/messages'), (snap) => {
                 const logs = snap.val() || {};
                 const container = document.getElementById('logs-container');
                 const entries = Object.values(logs).sort((a,b) => b.timestamp - a.timestamp);
-                
                 document.getElementById('stat-messages').innerText = entries.length;
-
                 if (entries.length === 0) {
                     container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No messages yet.</p>';
                     return;
                 }
-
                 container.innerHTML = entries.map(log => `
                     <div class="log-card">
-                        <div class="log-meta">
-                            <span>From: ${log.from.split('@')[0]}</span> • 
-                            <span>${new Date(log.timestamp).toLocaleString()}</span>
-                        </div>
+                        <div class="log-meta"><span>From: ${log.from.split('@')[0]}</span> • <span>${new Date(log.timestamp).toLocaleString()}</span></div>
                         <div class="log-body">${log.message}</div>
                         <div class="log-reply"><b>Reply:</b> ${log.response}</div>
                     </div>
@@ -601,29 +641,23 @@
             });
         }
 
-        // Save Functions
-        window.saveWelcome = () => {
-            const val = document.getElementById('input-welcome').value;
-            set(ref(db, 'config/welcomeMessage'), val).then(showToast);
+        window.saveConfig = () => {
+            const updates = {
+                welcomeMessage: document.getElementById('input-welcome').value,
+                businessInfo: document.getElementById('input-business').value,
+                orderPrompt: document.getElementById('input-order-prompt').value
+            };
+            update(ref(db, 'config'), updates).then(showToast);
         };
 
-        window.saveBusiness = () => {
-            const val = document.getElementById('input-business').value;
-            set(ref(db, 'config/businessInfo'), val).then(showToast);
-        };
-
-        window.toggleAI = () => {
-            const val = document.getElementById('toggle-ai').checked;
-            set(ref(db, 'config/aiEnabled'), val).then(showToast);
-        };
+        window.toggleAI = () => set(ref(db, 'config/aiEnabled'), document.getElementById('toggle-ai').checked).then(showToast);
 
         // Services CRUD
-        window.showServiceForm = (index = null) => {
-            const form = document.getElementById('service-form');
-            form.style.display = 'block';
-            if (index !== null) {
-                const s = currentServices[index];
-                document.getElementById('service-index').value = index;
+        window.showServiceForm = (idx = null) => {
+            document.getElementById('service-form').style.display = 'block';
+            if (idx !== null) {
+                const s = currentServices[idx];
+                document.getElementById('service-index').value = idx;
                 document.getElementById('service-name').value = s.name;
                 document.getElementById('service-price').value = s.price;
                 document.getElementById('service-desc').value = s.description;
@@ -636,110 +670,105 @@
                 document.getElementById('service-form-title').innerText = 'Add Service';
             }
         };
-
         window.hideServiceForm = () => document.getElementById('service-form').style.display = 'none';
-
         window.saveService = () => {
             const idx = document.getElementById('service-index').value;
-            const newService = {
-                name: document.getElementById('service-name').value,
-                price: document.getElementById('service-price').value,
-                description: document.getElementById('service-desc').value
-            };
-
-            if (idx === '') {
-                currentServices.push(newService);
-            } else {
-                currentServices[idx] = newService;
-            }
-
-            set(ref(db, 'config/services'), currentServices).then(() => {
-                hideServiceForm();
-                showToast();
-            });
+            const s = { name: document.getElementById('service-name').value, price: document.getElementById('service-price').value, description: document.getElementById('service-desc').value };
+            if (idx === '') currentServices.push(s); else currentServices[idx] = s;
+            set(ref(db, 'config/services'), currentServices).then(() => { hideServiceForm(); showToast(); });
         };
-
-        window.deleteService = (idx) => {
-            if (confirm('Delete this service?')) {
-                currentServices.splice(idx, 1);
-                set(ref(db, 'config/services'), currentServices).then(showToast);
-            }
-        };
-
+        window.deleteService = (idx) => { if (confirm('Delete?')) { currentServices.splice(idx, 1); set(ref(db, 'config/services'), currentServices).then(showToast); } };
         function renderServices() {
-            const list = document.getElementById('services-list');
-            list.innerHTML = currentServices.map((s, i) => `
+            document.getElementById('services-list').innerHTML = currentServices.map((s, i) => `
                 <div class="card">
                     <h3 style="color: var(--accent-color);">${s.name}</h3>
                     <p style="margin: 0.5rem 0; font-weight: 600;">${s.price}</p>
                     <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">${s.description}</p>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn-outline" onclick="showServiceForm(${i})" style="padding: 6px 12px; font-size: 0.8rem;">Edit</button>
-                        <button class="btn-outline" onclick="deleteService(${i})" style="padding: 6px 12px; font-size: 0.8rem; border-color: var(--danger); color: var(--danger);">Delete</button>
-                    </div>
+                    <div style="display: flex; gap: 10px;"><button class="btn-outline" onclick="showServiceForm(${i})">Edit</button><button class="btn-outline" onclick="deleteService(${i})" style="border-color: var(--danger); color: var(--danger);">Delete</button></div>
                 </div>
             `).join('');
         }
 
-        // QnA CRUD
-        window.showQnaForm = (index = null) => {
-            const form = document.getElementById('qna-form');
-            form.style.display = 'block';
-            if (index !== null) {
-                const q = currentQna[index];
-                document.getElementById('qna-index').value = index;
+        // Custom Commands CRUD
+        window.showCommandForm = (idx = null) => {
+            document.getElementById('command-form').style.display = 'block';
+            if (idx !== null) {
+                const c = currentCommands[idx];
+                document.getElementById('command-index').value = idx;
+                document.getElementById('command-trigger').value = c.command;
+                document.getElementById('command-reply').value = c.reply;
+                document.getElementById('command-form-title').innerText = 'Edit Command';
+            } else {
+                document.getElementById('command-index').value = '';
+                document.getElementById('command-trigger').value = '';
+                document.getElementById('command-reply').value = '';
+                document.getElementById('command-form-title').innerText = 'Add Command';
+            }
+        };
+        window.hideCommandForm = () => document.getElementById('command-form').style.display = 'none';
+        window.saveCommand = () => {
+            const idx = document.getElementById('command-index').value;
+            const c = { command: document.getElementById('command-trigger').value, reply: document.getElementById('command-reply').value };
+            if (idx === '') currentCommands.push(c); else currentCommands[idx] = c;
+            set(ref(db, 'config/customCommands'), currentCommands).then(() => { hideCommandForm(); showToast(); });
+        };
+        window.deleteCommand = (idx) => { if (confirm('Delete?')) { currentCommands.splice(idx, 1); set(ref(db, 'config/customCommands'), currentCommands).then(showToast); } };
+        function renderCommands() {
+            document.getElementById('commands-list').innerHTML = currentCommands.map((c, i) => `
+                <div class="card">
+                    <h3 style="color: var(--accent-color);">/${c.command}</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 1rem 0;">${c.reply}</p>
+                    <div style="display: flex; gap: 10px;"><button class="btn-outline" onclick="showCommandForm(${i})">Edit</button><button class="btn-outline" onclick="deleteCommand(${i})" style="border-color: var(--danger); color: var(--danger);">Delete</button></div>
+                </div>
+            `).join('');
+        }
+
+        // QnA CRUD (Simplified from before)
+        window.showQnaForm = (idx = null) => {
+            document.getElementById('qna-form').style.display = 'block';
+            if (idx !== null) {
+                const q = currentQna[idx];
+                document.getElementById('qna-index').value = idx;
                 document.getElementById('qna-question').value = q.question;
                 document.getElementById('qna-answer').value = q.answer;
-                document.getElementById('qna-form-title').innerText = 'Edit Q&A';
             } else {
                 document.getElementById('qna-index').value = '';
                 document.getElementById('qna-question').value = '';
                 document.getElementById('qna-answer').value = '';
-                document.getElementById('qna-form-title').innerText = 'Add Q&A';
             }
         };
-
         window.hideQnaForm = () => document.getElementById('qna-form').style.display = 'none';
-
         window.saveQna = () => {
             const idx = document.getElementById('qna-index').value;
-            const newQna = {
-                question: document.getElementById('qna-question').value,
-                answer: document.getElementById('qna-answer').value
-            };
-
-            if (idx === '') {
-                currentQna.push(newQna);
-            } else {
-                currentQna[idx] = newQna;
-            }
-
-            set(ref(db, 'config/qna'), currentQna).then(() => {
-                hideQnaForm();
-                showToast();
-            });
+            const q = { question: document.getElementById('qna-question').value, answer: document.getElementById('qna-answer').value };
+            if (idx === '') currentQna.push(q); else currentQna[idx] = q;
+            set(ref(db, 'config/qna'), currentQna).then(() => { hideQnaForm(); showToast(); });
         };
-
-        window.deleteQna = (idx) => {
-            if (confirm('Delete this Q&A?')) {
-                currentQna.splice(idx, 1);
-                set(ref(db, 'config/qna'), currentQna).then(showToast);
-            }
-        };
-
+        window.deleteQna = (idx) => { if (confirm('Delete?')) { currentQna.splice(idx, 1); set(ref(db, 'config/qna'), currentQna).then(showToast); } };
         function renderQna() {
-            const list = document.getElementById('qna-list');
-            list.innerHTML = currentQna.map((q, i) => `
+            document.getElementById('qna-list').innerHTML = currentQna.map((q, i) => `
                 <div class="card">
-                    <h4 style="margin-bottom: 0.5rem;">Q: ${q.question}</h4>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">A: ${q.answer}</p>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn-outline" onclick="showQnaForm(${i})" style="padding: 6px 12px; font-size: 0.8rem;">Edit</button>
-                        <button class="btn-outline" onclick="deleteQna(${i})" style="padding: 6px 12px; font-size: 0.8rem; border-color: var(--danger); color: var(--danger);">Delete</button>
-                    </div>
+                    <h4>Q: ${q.question}</h4>
+                    <p style="color: var(--text-secondary); margin: 0.5rem 0;">A: ${q.answer}</p>
+                    <div style="display: flex; gap: 10px;"><button class="btn-outline" onclick="showQnaForm(${i})">Edit</button><button class="btn-outline" onclick="deleteQna(${i})" style="border-color: var(--danger); color: var(--danger);">Delete</button></div>
                 </div>
             `).join('');
         }
+
+        window.deleteOrder = (orderId) => {
+            if (confirm('Mark as completed and delete?')) {
+                const ordersRef = ref(db, 'orders');
+                onValue(ordersRef, (snap) => {
+                    const orders = snap.val();
+                    for (let key in orders) {
+                        if (orders[key].orderId === orderId) {
+                            remove(ref(db, `orders/${key}`));
+                            break;
+                        }
+                    }
+                }, { onlyOnce: true });
+            }
+        };
     </script>
 </body>
 </html>

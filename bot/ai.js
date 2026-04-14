@@ -3,6 +3,10 @@ const OpenAI = require('openai');
 const client = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     apiKey: process.env.OPENROUTER_API_KEY,
+    defaultHeaders: {
+        "HTTP-Referer": "https://github.com/onway2-ux/WA-Agent-Business",
+        "X-Title": "WA Agent Business Bot"
+    }
 });
 
 /**
@@ -35,13 +39,13 @@ Rules:
         const aiReply = response?.choices?.[0]?.message?.content || null;
 
         if (!aiReply) {
-            console.error("Empty AI response");
+            console.error("Empty AI response from OpenRouter:", JSON.stringify(response, null, 2));
             return "Sorry, I could not process that right now.";
         }
 
         return aiReply;
     } catch (error) {
-        console.error("AI Error:", error.message);
+        console.error("AI Error Details:", error.response?.data || error.message);
         return "Sorry, I could not process that right now.";
     }
 }
